@@ -61,10 +61,11 @@ Add these in **Settings → Secrets and variables → Actions → New repository
 
 ### 2. One-time server setup (Nginx behind Cloudflare Tunnel)
 
-Nginx only listens on `127.0.0.1:8080`; Cloudflare Tunnel provides the public hostname and HTTPS,
-so no domain or certbot setup is needed on the server.
+Nginx serves the site as a name-based virtual host on `127.0.0.1:80`, next to the server's other
+sites. The existing Cloudflare Tunnel provides the public hostname and HTTPS, so only SSH needs to be
+reachable from the internet.
 
-1. Copy `deploy/nginx.conf.example` to `/etc/nginx/sites-available/jxlconverter`, replace `<user>`,
-   and run the commands at the top of that file.
-2. In Cloudflare Zero Trust → Networks → Tunnels → your tunnel → **Public Hostname**, add a hostname
-   (e.g. `jxl.yourdomain.com`) with service `HTTP` → `localhost:8080`.
+1. Copy `deploy/nginx.conf.example` to `/etc/nginx/sites-available/jxlconverter`, replace `<user>` and
+   `<domain>`, and run the commands at the top of that file.
+2. In Cloudflare Zero Trust → Networks → Tunnels → your tunnel → **Public Hostname**, add `<domain>`
+   with service `HTTP` → `localhost:80`.
