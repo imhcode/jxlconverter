@@ -18,6 +18,13 @@ npm run build
 npm run preview
 ```
 
+Single binary (the web app embedded in a Go server, needs Go 1.24+):
+
+```bash
+npm run build:bin
+./bin/jxlconverter                 # http://127.0.0.1:8090  (-addr to change)
+```
+
 ## Google Analytics 4
 
 Set `VITE_GA_ID=G-XXXXXXXXXX` in `.env`. If it is empty, no analytics script is loaded.
@@ -40,32 +47,45 @@ Events sent (anonymous, never file names or image data):
 - JPEG inputs are re-encoded from pixels. Bit-exact lossless JPEG recompression (`cjxl` JPEG transcoding) isn't available in the WASM build.
 - HEIC/TIFF only work if the browser itself can decode them (e.g. Safari).
 
-## Deploy (GitHub Actions → your server)
+## Deploy (single binary + Cloudflare Tunnel)
 
-Every push to `main` builds the app and rsyncs `dist/` to your server over SSH
-(`.github/workflows/deploy.yml`). You can also run it by hand: **Actions → Deploy → Run workflow**.
+`.github/workflows/deploy.yml` builds `jxlconverter` (Linux amd64 + arm64) with the web app embedded.
 
-### 1. Repository secrets
+- **Push to `main`**: uploads the binary to `~/jxlconverter/jxlconverter` on the server over SSH,
+  installs the systemd **user** service from `deploy/jxlconverter.service`, restarts it, and checks
+  `http://127.0.0.1:8090/up`. No root, no Nginx.
+- **Push a tag `v*`** (e.g. `git tag v1.0.0 && git push origin v1.0.0`): publishes a GitHub Release
+  with both binaries and `SHA256SUMS`.
 
-Add these in **Settings → Secrets and variables → Actions → New repository secret**:
+### One-time setup
 
-| Secret | Required | Value |
-|---|---|---|
-| `SSH_KEY` | yes | Full contents of the **private** key `jxl_deploy` (including the `BEGIN`/`END` lines) |
-| `SSH_HOST` | yes | Server IP or hostname |
-| `SSH_USER` | yes | User whose `authorized_keys` has `jxl_deploy.pub` |
-| `SSH_PORT` | no | Defaults to `22` |
-| `SSH_KNOWN_HOSTS` | no | Output of `ssh-keyscan -p <port> <host>` run on your own machine (pins the host key) |
-| `DEPLOY_PATH` | no | Defaults to `jxlconverter` (= `~/jxlconverter`). Use a relative or absolute path, not `~` |
-| `VITE_GA_ID` | no | GA4 Measurement ID, baked in at build time |
+1. **Server** (once, so the user service survives logout and reboot):
 
-### 2. One-time server setup (Nginx behind Cloudflare Tunnel)
+   ```bash
+   sudo loginctl enable-linger <user>
+   ```
 
-Nginx serves the site as a name-based virtual host on `127.0.0.1:80`, next to the server's other
-sites. The existing Cloudflare Tunnel provides the public hostname and HTTPS, so only SSH needs to be
-reachable from the internet.
+2. **Repository secrets** (Settings → Secrets and variables → Actions):
 
-1. Copy `deploy/nginx.conf.example` to `/etc/nginx/sites-available/jxlconverter`, replace `<user>` and
-   `<domain>`, and run the commands at the top of that file.
-2. In Cloudflare Zero Trust → Networks → Tunnels → your tunnel → **Public Hostname**, add `<domain>`
-   with service `HTTP` → `localhost:80`.
+   | Secret | Required | Value |
+   |---|---|---|
+   | `SSH_KEY` | yes | Full contents of the private key `jxl_deploy` |
+   | `SSH_HOST` | yes | Server IP or hostname |
+   | `SSH_USER` | yes | User whose `authorized_keys` has `jxl_deploy.pub` |
+   | `SSH_PORT` | no | Defaults to `22` |
+   | `SSH_KNOWN_HOSTS` | no | `<host> ssh-ed25519 AAAA…` (from `/etc/ssh/ssh_host_ed25519_key.pub`) to pin the host key |
+   | `VITE_GA_ID` | no | GA4 Measurement ID, baked in at build time |
+
+3. **Cloudflare** Zero Trust → Networks → Tunnels → your tunnel → **Public Hostname** → add your
+   domain with service `HTTP` → `localhost:8090`.
+
+### Manual install from a Release (without Actions)
+
+```bash
+mkdir -p ~/jxlconverter ~/.config/systemd/user
+curl -fL -o ~/jxlconverter/jxlconverter https://github.com/imhcode/jxlconverter/releases/latest/download/jxlconverter-linux-amd64
+chmod 755 ~/jxlconverter/jxlconverter
+curl -fL -o ~/.config/systemd/user/jxlconverter.service https://raw.githubusercontent.com/imhcode/jxlconverter/main/deploy/jxlconverter.service
+systemctl --user daemon-reload && systemctl --user enable --now jxlconverter
+curl http://127.0.0.1:8090/up
+```

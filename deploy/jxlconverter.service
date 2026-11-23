@@ -1,0 +1,15 @@
+# ~/.config/systemd/user/jxlconverter.service — installed and restarted by the Deploy workflow.
+# Runs as the deploy user (no root needed). One-time on the server so it survives logout/reboot:
+#   sudo loginctl enable-linger <user>
+[Unit]
+Description=JXL Converter (static web app, conversion runs in the browser)
+After=network-online.target
+
+[Service]
+ExecStart=%h/jxlconverter/jxlconverter -addr 127.0.0.1:8090
+Restart=always
+RestartSec=3
+NoNewPrivileges=true
+
+[Install]
+WantedBy=default.target
