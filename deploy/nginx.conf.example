@@ -1,0 +1,39 @@
+# /etc/nginx/sites-available/jxlconverter
+# Replace <user> and <domain>, then:
+#   sudo ln -s /etc/nginx/sites-available/jxlconverter /etc/nginx/sites-enabled/
+#   sudo chmod o+x /home/<user>          # let nginx traverse the home dir
+#   sudo nginx -t && sudo systemctl reload nginx
+#   sudo certbot --nginx -d <domain>     # HTTPS
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name <domain>;
+
+    root /home/<user>/jxlconverter;
+    index index.html;
+
+    # WebAssembly must be served as application/wasm for streaming compile.
+    include mime.types;
+    types {
+        application/wasm wasm;
+        image/jxl        jxl;
+    }
+
+    gzip on;
+    gzip_types text/css application/javascript application/wasm image/svg+xml;
+    gzip_min_length 1024;
+
+    # Vite fingerprints asset filenames, so they can be cached forever.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        try_files $uri =404;
+    }
+
+    # Always revalidate the HTML so new deploys show up immediately.
+    location / {
+        add_header Cache-Control "no-cache";
+        try_files $uri $uri/ /index.html;
+    }
+}
