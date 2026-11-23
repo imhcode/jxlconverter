@@ -1,14 +1,22 @@
 # /etc/nginx/sites-available/jxlconverter
-# Replace <user> and <domain>, then:
+# Local-only site for Cloudflare Tunnel: no domain, no certbot needed.
+# Cloudflare handles the public hostname and HTTPS.
+#
+# Replace <user>, then:
 #   sudo ln -s /etc/nginx/sites-available/jxlconverter /etc/nginx/sites-enabled/
 #   sudo chmod o+x /home/<user>          # let nginx traverse the home dir
 #   sudo nginx -t && sudo systemctl reload nginx
-#   sudo certbot --nginx -d <domain>     # HTTPS
+#   curl -I http://127.0.0.1:8080/      # should return 200
+#
+# Then in Cloudflare Zero Trust → Networks → Tunnels → your tunnel → Public Hostname:
+#   hostname: jxl.yourdomain.com   service: HTTP   URL: localhost:8080
+# (or in config.yml ingress:  - hostname: jxl.yourdomain.com
+#                               service: http://localhost:8080)
 
 server {
-    listen 80;
-    listen [::]:80;
-    server_name <domain>;
+    # Only reachable from the server itself; the tunnel connects locally.
+    listen 127.0.0.1:8080;
+    server_name _;
 
     root /home/<user>/jxlconverter;
     index index.html;

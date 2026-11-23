@@ -55,12 +55,16 @@ Add these in **Settings → Secrets and variables → Actions → New repository
 | `SSH_HOST` | yes | Server IP or hostname |
 | `SSH_USER` | yes | User whose `authorized_keys` has `jxl_deploy.pub` |
 | `SSH_PORT` | no | Defaults to `22` |
-| `SSH_KNOWN_HOSTS` | recommended | Output of `ssh-keyscan -p <port> <host>` run on your own machine (pins the host key) |
+| `SSH_KNOWN_HOSTS` | no | Output of `ssh-keyscan -p <port> <host>` run on your own machine (pins the host key) |
 | `DEPLOY_PATH` | no | Defaults to `jxlconverter` (= `~/jxlconverter`). Use a relative or absolute path, not `~` |
 | `VITE_GA_ID` | no | GA4 Measurement ID, baked in at build time |
 
-### 2. One-time server setup (Nginx)
+### 2. One-time server setup (Nginx behind Cloudflare Tunnel)
 
-Copy `deploy/nginx.conf.example` to `/etc/nginx/sites-available/jxlconverter`, replace
-`<user>` / `<domain>`, then follow the commands at the top of that file
-(enable site, `chmod o+x /home/<user>`, `nginx -t`, reload, certbot for HTTPS).
+Nginx only listens on `127.0.0.1:8080`; Cloudflare Tunnel provides the public hostname and HTTPS,
+so no domain or certbot setup is needed on the server.
+
+1. Copy `deploy/nginx.conf.example` to `/etc/nginx/sites-available/jxlconverter`, replace `<user>`,
+   and run the commands at the top of that file.
+2. In Cloudflare Zero Trust → Networks → Tunnels → your tunnel → **Public Hostname**, add a hostname
+   (e.g. `jxl.yourdomain.com`) with service `HTTP` → `localhost:8080`.
