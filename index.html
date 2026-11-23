@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JXL Converter</title>
+    <meta name="description" content="Convert any image to JPEG XL. Runs in your browser — your images are never uploaded to a server." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23111'/%3E%3Ctext x='16' y='21' font-family='system-ui,sans-serif' font-size='11' font-weight='700' fill='%23fff' text-anchor='middle'%3EJXL%3C/text%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="hero">
+        <div class="wordmark"><span class="mark">JXL</span> Converter</div>
+        <h1>Convert any image to JPEG&nbsp;XL</h1>
+        <p class="privacy">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+          <span><strong>Runs in your browser.</strong> Your images are never uploaded to a server.</span>
+        </p>
+      </header>
+
+      <section class="drop-section">
+        <label class="dropzone" id="dropzone" tabindex="0">
+          <input id="file-input" type="file" accept="image/*,.jpg,.jpeg,.png,.webp,.gif,.avif,.bmp,.svg,.ico,.tif,.tiff" multiple hidden />
+          <svg class="drop-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4"/><path d="m6 10 6-6 6 6"/><path d="M4 20h16"/></svg>
+          <span class="drop-title">Drop images here or <u>browse</u></span>
+          <span class="drop-hint">PNG, JPG, WebP, GIF, AVIF, BMP, SVG — or paste with ⌘V / Ctrl+V</span>
+        </label>
+
+        <div class="settings" id="settings">
+          <div class="field field-quality">
+            <div class="field-head">
+              <label for="quality">Quality</label>
+              <output id="quality-value" for="quality">85</output>
+            </div>
+            <input id="quality" type="range" min="1" max="100" value="85" />
+          </div>
+
+          <label class="field toggle">
+            <input id="lossless" type="checkbox" role="switch" />
+            <span class="switch" aria-hidden="true"></span>
+            <span>Lossless</span>
+          </label>
+
+          <div class="field">
+            <div class="segmented" id="effort" role="radiogroup" aria-label="Speed">
+              <button type="button" role="radio" data-effort="3" aria-checked="false">Fast</button>
+              <button type="button" role="radio" data-effort="7" aria-checked="true">Balanced</button>
+              <button type="button" role="radio" data-effort="9" aria-checked="false">Smallest</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="results" id="results" hidden>
+        <div class="summary">
+          <p id="summary-text" aria-live="polite"></p>
+          <div class="summary-actions">
+            <button type="button" class="btn ghost" id="clear">Clear</button>
+            <button type="button" class="btn primary" id="download-all" disabled>Download all</button>
+          </div>
+        </div>
+        <ul class="file-list" id="file-list"></ul>
+      </section>
+
+      <footer class="foot">
+        Powered by libjxl compiled to WebAssembly. Anonymous usage stats via Google&nbsp;Analytics — no file names or images are ever sent.
+      </footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
