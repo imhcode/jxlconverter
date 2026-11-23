@@ -3,7 +3,8 @@ import { downloadZip } from 'client-zip';
 import { EncoderPool } from './queue';
 import { initAnalytics, track } from './analytics';
 import { bytes, extOf, savedPct, toJxlName } from './format';
-import type { Settings, WorkerResponse } from './types';
+import { fitWithin } from './limits';
+import type { FailCode, Settings, WorkerResponse } from './types';
 
 initAnalytics();
 
@@ -19,6 +20,8 @@ interface Item {
   output?: Blob;
   url?: string;
   error?: string;
+  resizedFrom?: { width: number; height: number };
+  size?: { width: number; height: number };
   el: HTMLLIElement;
 }
 
@@ -115,6 +118,7 @@ async function convert(item: Item) {
   const version = ++item.version;
   item.status = 'working';
   item.error = undefined;
+  item.resizedFrom = undefined;
   if (!batch.count) batch.start = performance.now();
   batch.count++;
   renderItem(item);
@@ -125,11 +129,11 @@ async function convert(item: Item) {
     // Workers can't rasterize SVG; decode on the main thread instead.
     res = await decodeOnMain(item.file).then(
       (pixels) => pool.encode({ pixels }, s),
-      () => ({ id: 0, ok: false as const, decode: true, error: 'Could not read this SVG' }),
+      (): WorkerResponse => ({ id: 0, ok: false, code: 'decode', error: 'Could not read this SVG' }),
     );
   } else {
     res = await pool.encode({ file: item.file }, s);
-    if (!res.ok && res.decode) {
+    if (!res.ok && res.code === 'decode') {
       // Fallback: some formats (e.g. ICO) decode via <img> but not createImageBitmap in workers.
       const pixels = await decodeOnMain(item.file).catch(() => null);
       if (pixels) res = await pool.encode({ pixels }, s);
@@ -146,12 +150,14 @@ async function convert(item: Item) {
     item.output = new Blob([res.buffer], { type: 'image/jxl' });
     item.url = URL.createObjectURL(item.output);
     item.status = 'done';
+    item.resizedFrom = res.resizedFrom;
+    item.size = { width: res.width, height: res.height };
     batch.input += item.file.size;
     batch.output += item.output.size;
   } else {
     item.status = 'error';
-    item.error = res.error;
-    track('conversion_error', { format: extOf(item.file), reason: res.decode ? 'decode' : 'encode' });
+    item.error = friendlyError(res.code, res.error);
+    track('conversion_error', { format: extOf(item.file), reason: res.code });
   }
   renderItem(item);
   render();
@@ -175,13 +181,18 @@ function finishBatchIfIdle() {
   batch = { count: 0, input: 0, output: 0, start: 0 };
 }
 
+function friendlyError(code: FailCode, raw: string): string {
+  if (code === 'memory') return 'Not enough browser memory to convert this image. Try a smaller image or close other tabs.';
+  if (code === 'decode') return raw;
+  return `Conversion failed (${raw})`;
+}
+
 function decodeOnMain(file: File): Promise<ImageData> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
-      const w = img.naturalWidth || 1024;
-      const h = img.naturalHeight || 1024;
+      const { width: w, height: h } = fitWithin(img.naturalWidth || 1024, img.naturalHeight || 1024);
       const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
@@ -310,7 +321,10 @@ function renderItem(item: Item) {
   if (item.status === 'done' && item.output) {
     const pct = savedPct(item.file.size, item.output.size);
     const pill = pct > 0 ? `<span class="pill">−${pct}%</span>` : `<span class="pill worse">+${-pct}%</span>`;
-    detail = `<div class="sizes"><span>${bytes(item.file.size)} → ${bytes(item.output.size)}</span>${pill}</div>`;
+    const note = item.resizedFrom
+      ? `<div class="note">Resized ${item.resizedFrom.width}×${item.resizedFrom.height} → ${item.size!.width}×${item.size!.height} to fit browser memory</div>`
+      : '';
+    detail = `<div class="sizes"><span>${bytes(item.file.size)} → ${bytes(item.output.size)}</span>${pill}</div>${note}`;
   } else if (item.status === 'error') {
     detail = `<div class="sizes error">${escapeHtml(item.error ?? 'Failed')}</div>`;
   } else {

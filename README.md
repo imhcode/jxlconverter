@@ -46,6 +46,11 @@ Events sent (anonymous, never file names or image data):
 - The WASM runs single-threaded per worker, with a pool of up to 4 workers. That avoids the COOP/COEP headers that would block the GA script.
 - JPEG inputs are re-encoded from pixels. Bit-exact lossless JPEG recompression (`cjxl` JPEG transcoding) isn't available in the WASM build.
 - HEIC/TIFF only work if the browser itself can decode them (e.g. Safari).
+- **Large images**: the libjxl WASM build is limited to 2 GB of memory. Measured: ~20 MP encodes, ~24 MP aborts
+  (the browser reports it as "index out of bounds" in Firefox, "memory access out of bounds" in Chrome), in both
+  lossy and lossless mode. Images above 16 MP (`MAX_PIXELS` in `src/limits.ts`) are scaled down to fit, and the
+  row says so (e.g. "Resized 6000×4000 → 4898×3265"). If a conversion still runs out of memory, the worker is
+  replaced so the next file is unaffected.
 
 ## Deploy (single binary + Cloudflare Tunnel)
 
